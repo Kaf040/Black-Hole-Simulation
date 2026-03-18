@@ -30,11 +30,6 @@ struct Engine
             error = true;
         }
 
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
-        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-        glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
-
         // Создание окна
         window = glfwCreateWindow(WIDTH, HEIGHT, "Black Hole Simulation", NULL, NULL);
 
@@ -57,23 +52,6 @@ struct Engine
             glfwTerminate();
             error = true;
         }
-
-        // Создание переменной которая будет хранить адресс буфера
-        GLuint vertexBuffer;
-        // Создание буфера и записи его адреса
-        glGenBuffers(1, &vertexBuffer);
-
-        // Список с углами или как это говно называется, пофиг всё равно это временно
-        float vertices[] = {
-            0.0f, 0.5f, // Vertex 1 (X, Y)
-            0.5f, -0.5f, // Vertex 2 (X, Y)
-            -0.5f, -0.5f // Vertex 3 (X, Y)
-        };
-
-        //
-        GLuint vbo;
-        // Создание Vertex Buffer Object (VBO) и запись указателя на него а vbo
-        glGenBuffers(1, &vbo);
     }
     // ПРоверка на получение ошибок
     bool check() {
