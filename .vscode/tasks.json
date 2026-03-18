@@ -8,7 +8,7 @@
       "args": [
         "main.cpp",
         "-o",
-        "build.exe",
+        "build",
         "-lglfw",
         "-lGLEW",
         "-lGL"
