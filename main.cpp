@@ -27,9 +27,10 @@ struct Engine
         // Проверка инициализации GFLW
         if (!glfwInit()) {
             cerr << "Failed to init GLFW" << endl;
-            error = true;
+            exit(EXIT_FAILURE);
         }
 
+        // Установление стандартов GFLW
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
@@ -42,7 +43,7 @@ struct Engine
         if (!window && !error) {
             cerr << "Failed to create window" << endl;
             glfwTerminate();
-            error = true;
+            exit(EXIT_FAILURE);
         }
 
         // Установление минимального интервала между сменой буферов
@@ -55,7 +56,7 @@ struct Engine
             cerr << "Failed to init GLEW" << endl;
             glfwDestroyWindow(window);
             glfwTerminate();
-            error = true;
+            exit(EXIT_FAILURE);
         }
 
         // Создание переменной которая будет хранить адресс буфера
@@ -74,8 +75,95 @@ struct Engine
         GLuint vbo;
         // Создание Vertex Buffer Object (VBO) и запись указателя на него а vbo
         glGenBuffers(1, &vbo);
+
+        // Выбор и активация буфера по адресу vbo
+        glBindBuffer(GL_ARRAY_BUFFER, vbo);
+
+        // Выделение памяти видеокрты и перенос вершин в неё
+        glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+        // ШЕЙДЕРЫ
+
+        // Запись шеёдеров в переменные
+
+        // Вершинный (?) шейдер
+        const char* vertexSource = R"glsl(
+            #version 150 core
+            in vec2 position;
+            void main()
+            {
+                gl_Position = vec4(position, 0.0, 1.0);
+            }
+        )glsl";
+
+        // Фрагментный (?) шейдер
+        const char* fragmentSource = R"glsl(
+            #version 150 core
+            out vec4 outColor;
+            void main()
+            {
+                outColor = vec4(1.0, 1.0, 1.0, 1.0);
+            }
+        )glsl";
+
+        // Примерная структура того что происходит далее
+        /*
+        Создание переменной в которой хранится адресс    Создание шейдера как объекта (типо продукт класса)
+        Указание на код шейдера
+        Компиляция шейдера
+
+        Проверка статуса шейдера и при ошибке вывод логов в переменную
+        */
+
+        // Вершинный шейдер
+        GLuint vertexShader = glCreateShader(GL_VERTEX_SHADER);
+        glShaderSource(vertexShader, 1, &vertexSource, NULL);
+        glCompileShader(vertexShader);
+
+        GLint statusv;
+        glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &statusv);
+        if(!statusv){
+            char bufferv[512];
+            glGetShaderInfoLog(vertexShader, 512, NULL, bufferv);
+            cerr << "Vertex shaider error" << endl << bufferv << endl;
+        }
+
+        // Фрагментный шейдер
+        GLuint fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+        glShaderSource(fragmentShader, 1, &fragmentSource, NULL);
+        glCompileShader(fragmentShader);
+
+        GLint statusf;
+        glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &statusf);
+        if(!statusf){
+            char bufferf[512];
+            glGetShaderInfoLog(vertexShader, 512, NULL, bufferf);
+            cerr << "Fragment shaider error" << endl << bufferf << endl;
+        }
+
+        // Создание программы шейдеров и их к ней привязка
+        GLuint shaderProgram = glCreateProgram();
+        glAttachShader(shaderProgram, vertexShader);
+        glAttachShader(shaderProgram, fragmentShader);
+        glLinkProgram(shaderProgram);
+
+        // Выбор этой самой программы
+        glUseProgram(shaderProgram);
+
+
+        // Всё до этого момента я помню
+        // А это что за дерьмо?
+
+        //making the link between vertex data and attributes
+        //retrieving a reference to the position input in the vertex shader
+        GLint posAttrib = glGetAttribLocation(shaderProgram, "position");
+        //specifing how the data for that input is retrieved from the array
+        glVertexAttribPointer(posAttrib, 2, GL_FLOAT, GL_FALSE, 0, 0);
+        //enabling the vertex attribute array
+        glEnableVertexAttribArray(posAttrib);
+
     }
-    // ПРоверка на получение ошибок
+    // Проверка на получение ошибок
     bool check() {
         if(error)
         {return true;}
@@ -89,8 +177,11 @@ int main() {
 
     // Главный цикл
     while (!glfwWindowShouldClose(engine.window)) {
-        glClear(GL_COLOR_BUFFER_BIT);
-        
+
+        if (glfwGetKey(engine.window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        {
+            glfwSetWindowShouldClose(engine.window, GL_TRUE);
+        }
         // Смена буффера
         glfwSwapBuffers(engine.window);
 
