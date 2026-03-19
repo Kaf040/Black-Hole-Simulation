@@ -1,3 +1,4 @@
+// А для этого у нас есть ридми, но мне как-то лень узнавать кто такой маркдаун
 /*
     a chto nam nado:
     input function for hole
@@ -30,6 +31,7 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
+#include <vector>
 #include <iostream>
 using namespace glm;
 using namespace std;
@@ -37,6 +39,19 @@ using namespace std;
 const double c = 299792458.0;
 const double G = 6.67430e-11;
 const double PI = 3.141592653589793238462643383279502884197169399375105820974944592307816406286208998628034825342117067982148086513282306647093844609550582231725359408128481117450284102701938521105559644622948954930381964428810975665933446128475648233786783165271201909145648566923460348610454326648213393607260249141273724587006606315588174881520920962829254091715364367892590360011330530548820466521384146951941511609433057270365759591953092186117381932611793105118548074462;
+
+// Камера
+struct Cam
+{
+    // Координаты
+    double x, y, z;
+    // Вращение
+    double tilt, yaw, pitch;
+
+    Cam(double X, double Y, double Z){
+        x = X; y = Y; z = Z;
+    }
+};
 
 struct Engine
 {
@@ -57,7 +72,7 @@ struct Engine
         // Проверка инициализации GFLW
         if (!glfwInit()) {
             cerr << "Failed to init GLFW" << endl;
-            error = true;
+            exit(EXIT_FAILURE);
         }
 
         // Создание окна
@@ -67,7 +82,7 @@ struct Engine
         if (!window && !error) {
             cerr << "Failed to create window" << endl;
             glfwTerminate();
-            error = true;
+            exit(EXIT_FAILURE);
         }
 
         // Установление минимального интервала между сменой буферов
@@ -80,25 +95,19 @@ struct Engine
             cerr << "Failed to init GLEW" << endl;
             glfwDestroyWindow(window);
             glfwTerminate();
-            error = true;
+            exit(EXIT_FAILURE);
         }
-    }
-    // Проверка на получение ошибок
-    bool check() {
-        if(error)
-        {return true;}
-        else{return false;}
     }
     
     // Понять что такое
-    void run() {
+    void run(Cam cam) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
-        double left   = -width + offsetX;
-        double right  =  width + offsetX;
-        double bottom = -height + offsetY;
-        double top    =  height + offsetY;
+        double left   = -width + cam.x;
+        double right  =  width + cam.x;
+        double bottom = -height + cam.y;
+        double top    =  height + cam.y;
         glOrtho(left, right, bottom, top, -1.0, 1.0);
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
@@ -113,19 +122,23 @@ struct Ray{
     
     // Список с точками для следа
     vector<vec3> trail;
-    ray() {
-    
+
+    // Ы
+    Ray(double X, double Y, double Z) {
+        x = X; y = Y; z = Z;
     }
+
+    //
     void step() {
         
-        
     }
+
     void draw(vector<Ray> rays) {
         glPointSize(2.0f);
         glColor3f(1.0f, 1.0f, 1.0f);
         glBegin(GL_POINTS);
         for(auto& ray : rays) {
-            glVertex2f(ray.x, ray.y)
+            glVertex2f(ray.x, ray.y);
         }
         glEnd();
         
@@ -155,7 +168,7 @@ struct Hole{
     // Радиус Шварцшильда (горизонт событий)
     double r_s;
 
-    //Конструктор
+    // Присваивание значений и вычисление радиуса шварцшильда
     Hole(double X, double Y, double Z, double M)
     {
         x = X; y = Y; z = Z; m = M;
@@ -169,22 +182,40 @@ struct Hole{
         glColor3f(1.0f, 1.0f, 1.0f);               
         for(int i = 0; i <= 100; i++) {
             // Находим нужный угол как i сотых из двух радиан
-            float angle = 2.0f * PI * i / 100;
-            float x = r_s * cos(angle); // Radius of 0.1
-            float y = r_s * sin(angle);
+            double angle = 2.0f * PI * i / 100;
+            double x = r_s * cos(angle);
+            double y = r_s * sin(angle);
             // передача полученной точки в gl
             glVertex2f(x, y);
             
             // Находим угол как раньше но со смещением в пол шага
             float angle2 = (2.0f * PI * i / 100) + (2.0f * PI * 1.0f / 100);
-            float x2 = (r_s - r_s * 0.1) * cos(angle); // Radius of 0.1
+            float x2 = (r_s - r_s * 0.1) * cos(angle);
             float y2 = (r_s - r_s * 0.1) * sin(angle);
-            glVertex2f(x, y);
+            glVertex2f(x2, y2);
+            
         }
         glEnd();
     } 
 
+    // Функция которая точно работает
+    void draw2() {
+        glBegin(GL_TRIANGLE_FAN);
+        glColor3f(1.0f, 0.0f, 0.0f);               
+        for(int i = 0; i <= 100; i++) {
+            float angle = 2.0f * M_PI * i / 100;
+            float x = r_s * cos(angle);
+            float y = r_s * sin(angle);
+            glVertex2f(x, y);
+        }
+        glEnd();
+    }
+
 };
+
+Cam cam(0, 0, 0);
+
+Hole hole(0, 0, 0, 8.54e36);
 
 // Список с лучами
 vector<Ray> rays;
@@ -196,9 +227,19 @@ Engine engine;
 
 int main() {
 
+    Ray ray(-75000000000.0, 0.0, 0.0);
+    rays.push_back(ray);
+
     // Главный цикл
     while (!glfwWindowShouldClose(engine.window)) {
-        glClear(GL_COLOR_BUFFER_BIT);
+
+        engine.run(cam);
+
+        hole.draw();
+
+        ray.step();
+
+        ray.draw(rays);
 
         // Смена буффера
         glfwSwapBuffers(engine.window);
