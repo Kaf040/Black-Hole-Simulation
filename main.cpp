@@ -1,3 +1,32 @@
+/*
+    a chto nam nado:
+    input function for hole
+        hole
+        pos and mass 
+        maybe velocity and direction of movement 
+        
+    input function for rays
+        single mod
+            position and direction 
+        plane mod
+            position of ends of plane
+            density of rays
+                rays per unit of surface 
+                strict number of rays
+        star mod
+            position and radius 
+            density of rays
+                rays per unit of surface 
+                strict number of rays
+                
+    output function 
+        pos of rays after n seconds
+        pos of ray in intervals of seconds
+        pos and direction of a ray
+        
+    MAHT function    
+        geodesic
+*/
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -60,14 +89,59 @@ struct Engine
         {return true;}
         else{return false;}
     }
+    
+    // Понять что такое
+    void run() {
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glMatrixMode(GL_PROJECTION);
+        glLoadIdentity();
+        double left   = -width + offsetX;
+        double right  =  width + offsetX;
+        double bottom = -height + offsetY;
+        double top    =  height + offsetY;
+        glOrtho(left, right, bottom, top, -1.0, 1.0);
+        glMatrixMode(GL_MODELVIEW);
+        glLoadIdentity();
+    }
 };
 
-struct ray{
+struct Ray{
     // global coordinates
     double x, y, z;
     // radial coordinates 
     double teta, phi, r;
     
+    // Список с точками для следа
+    vector<vec3> trail;
+    ray() {
+    
+    }
+    void step() {
+        
+        
+    }
+    void draw(vector<Ray> rays) {
+        glPointSize(2.0f);
+        glColor3f(1.0f, 1.0f, 1.0f);
+        glBegin(GL_POINTS);
+        for(auto& ray : rays) {
+            glVertex2f(ray.x, ray.y)
+        }
+        glEnd();
+        
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glLineWidth(1.0f);
+        for(auto& ray : rays) {
+        size_t n = ray.trail.size();
+        if(n > 1){
+        
+        }
+        glBegin(GL_LINE_STRIP);
+        
+        glEnd();
+        }
+    }
 };
 
 struct Hole{
@@ -76,25 +150,32 @@ struct Hole{
     double x, y, z;
     // Масса
     double m;
-    
+
     // Из вычислений
     // Радиус Шварцшильда (горизонт событий)
     double r_s;
-    
-    Hole(double X, double Y, double Z, double mass)
+
+    //Конструктор
+    Hole(double X, double Y, double Z, double M)
     {
-        x = X; y = Y; z = Z; M = mass;
-        r_s = 2.0 * G * mass / (c * c);
+        x = X; y = Y; z = Z; m = M;
+        r_s = 2.0 * G * M / (c * c);
     }
+    
     void draw() {
+        // Выбор режима последовательных треугольников
         glBegin(GL_TRIANGLE_STRIP);
-        glColor3f(1.0f, 1.0f, 3.0f);               // white color for the black hole
+        // Белый цвет
+        glColor3f(1.0f, 1.0f, 1.0f);               
         for(int i = 0; i <= 100; i++) {
+            // Находим нужный угол как i сотых из двух радиан
             float angle = 2.0f * PI * i / 100;
             float x = r_s * cos(angle); // Radius of 0.1
             float y = r_s * sin(angle);
+            // передача полученной точки в gl
             glVertex2f(x, y);
             
+            // Находим угол как раньше но со смещением в пол шага
             float angle2 = (2.0f * PI * i / 100) + (2.0f * PI * 1.0f / 100);
             float x2 = (r_s - r_s * 0.1) * cos(angle); // Radius of 0.1
             float y2 = (r_s - r_s * 0.1) * sin(angle);
@@ -102,19 +183,23 @@ struct Hole{
         }
         glEnd();
     } 
-    
+
 };
 
-vector<ray> rays;
+// Список с лучами
+vector<Ray> rays;
 
+// Создание объекта движка
 Engine engine;
+
+
 
 int main() {
 
     // Главный цикл
     while (!glfwWindowShouldClose(engine.window)) {
         glClear(GL_COLOR_BUFFER_BIT);
-        
+
         // Смена буффера
         glfwSwapBuffers(engine.window);
 
