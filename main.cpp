@@ -46,6 +46,7 @@ struct Engine
     double width = 100000000000.0;
     double height = 75000000000.0;
     bool error = false;
+    bool pause = false;
 
     Engine(){
         // Запуск glew
@@ -105,6 +106,18 @@ struct Engine
         glLoadIdentity();
     }
 };
+
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    if (key == GLFW_KEY_SPACE && action == GLFW_PRESS){
+        if(!engine.pause){
+            engine.pause = true;
+        }
+        elseif(engine.pause){
+            engine.pause = false;
+        }
+    }    
+}
 
 struct Ray{
     // global coordinates
