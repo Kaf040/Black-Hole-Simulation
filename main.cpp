@@ -62,7 +62,7 @@ struct Engine
     // Размеры окна в метрах
     double width = 100000000000.0;
     double height = 75000000000.0;
-    bool error = false;
+    bool pause = false;
 
     Engine(){
         // Запуск glew
@@ -79,7 +79,7 @@ struct Engine
         window = glfwCreateWindow(WIDTH, HEIGHT, "Black Hole Simulation", NULL, NULL);
 
         // Проверка создания окна
-        if (!window && !error) {
+        if (!window) {
             cerr << "Failed to create window" << endl;
             glfwTerminate();
             exit(EXIT_FAILURE);
@@ -91,12 +91,14 @@ struct Engine
         glfwMakeContextCurrent(window);
 
         // Проверка работы GLEW
-        if (glewInit() != GLEW_OK && !error) {
+        if (glewInit() != GLEW_OK) {
             cerr << "Failed to init GLEW" << endl;
             glfwDestroyWindow(window);
             glfwTerminate();
             exit(EXIT_FAILURE);
         }
+
+        glfwSetKeyCallback(window, key_callback);
     }
     
     // Понять что такое
@@ -113,6 +115,18 @@ struct Engine
         glLoadIdentity();
     }
 };
+
+void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    if (key == GLFW_KEY_SPACE && action == GLFW_PRESS){
+        if(!engine.pause){
+            engine.pause = true;
+        }
+        else if(engine.pause){
+            engine.pause = false;
+        }
+    }    
+}
 
 struct Ray{
     // global coordinates
