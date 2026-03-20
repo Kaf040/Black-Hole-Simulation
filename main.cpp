@@ -133,7 +133,7 @@ struct Ray{
         
     }
 
-    void draw(vector<Ray> rays) {
+     void draw(vector<Ray> rays) {
         glPointSize(2.0f);
         glColor3f(1.0f, 1.0f, 1.0f);
         glBegin(GL_POINTS);
@@ -141,18 +141,28 @@ struct Ray{
             glVertex2f(ray.x, ray.y);
         }
         glEnd();
-        
+
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glLineWidth(1.0f);
         for(auto& ray : rays) {
-        size_t n = ray.trail.size();
-        if(n > 1){
         
-        }
-        glBegin(GL_LINE_STRIP);
-        
-        glEnd();
+            int n = ray.trail.size();
+            int s;
+            if(n > 50){
+                s = n - 50;
+            }
+            else {
+                s = 0;
+            }
+            
+            glBegin(GL_LINE_STRIP);
+            for(int i = s; i < n; i++){
+                float alpha = float(i - s) / float(n - s - 1);
+                glColor4f(1.0f, 1.0f, 1.0f, alpha);
+                glVertex2f(ray.trail[i].x, ray.trail[i].y);
+            }
+            glEnd();
         }
     }
 };
