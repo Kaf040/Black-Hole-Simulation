@@ -20,9 +20,7 @@
                 strict number of rays
                 
     output function 
-        pos of rays after n seconds
-        pos of ray in intervals of seconds
-        pos and direction of a ray
+        сделать функцию следа луча
         
     MAHT function    
         geodesic
@@ -82,6 +80,9 @@ struct Engine
             glfwTerminate();
             error = true;
         }
+        
+        // Выбираем функцию которая вызывается при получении ввода с клавиатуры
+        glfwSetKeyCallback(window, key_callback);
     }
     // Проверка на получение ошибок
     bool check() {
@@ -89,7 +90,7 @@ struct Engine
         {return true;}
         else{return false;}
     }
-    
+
     // Понять что такое
     void run() {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -110,16 +111,18 @@ struct Ray{
     double x, y, z;
     // radial coordinates 
     double teta, phi, r;
-    
+    // direction of movement 
+    double dteta, dphi, dr;
+
     // Список с точками для следа
-    vector<vec3> trail;
+    vector<vec2> trail;
     ray() {
-    
+
     }
     void step() {
-        
-        
+
     }
+    
     void draw(vector<Ray> rays) {
         glPointSize(2.0f);
         glColor3f(1.0f, 1.0f, 1.0f);
@@ -128,18 +131,27 @@ struct Ray{
             glVertex2f(ray.x, ray.y)
         }
         glEnd();
-        
+
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glLineWidth(1.0f);
         for(auto& ray : rays) {
-        size_t n = ray.trail.size();
-        if(n > 1){
         
-        }
-        glBegin(GL_LINE_STRIP);
-        
-        glEnd();
+            int n = ray.trail.size();
+            if(n > 50){
+                int s = n - 50
+            }
+            else {
+                int s = 0
+            }
+            
+            glBegin(GL_LINE_STRIP);
+            for(int i = s; i < n; i++){
+                float alpha = float(i - s) / float(n - s - 1);
+                glColor4f(1.0f, 1.0f, 1.0f, alpha);
+                glVertex2f(ray.trail[i].x, ray.trail[i].y);
+            }
+            glEnd();
         }
     }
 };
@@ -161,7 +173,7 @@ struct Hole{
         x = X; y = Y; z = Z; m = M;
         r_s = 2.0 * G * M / (c * c);
     }
-    
+
     void draw() {
         // Выбор режима последовательных треугольников
         glBegin(GL_TRIANGLE_STRIP);
@@ -174,7 +186,7 @@ struct Hole{
             float y = r_s * sin(angle);
             // передача полученной точки в gl
             glVertex2f(x, y);
-            
+
             // Находим угол как раньше но со смещением в пол шага
             float angle2 = (2.0f * PI * i / 100) + (2.0f * PI * 1.0f / 100);
             float x2 = (r_s - r_s * 0.1) * cos(angle); // Radius of 0.1
