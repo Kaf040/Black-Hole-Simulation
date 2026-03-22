@@ -31,6 +31,7 @@
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
+#include <cmath>
 #include <vector>
 #include <iostream>
 using namespace glm;
@@ -39,6 +40,8 @@ using namespace std;
 const double c = 299792458.0;
 const double G = 6.67430e-11;
 const double PI = 3.141592653589793238462643383279502884197169399375105820974944592307816406286208998628034825342117067982148086513282306647093844609550582231725359408128481117450284102701938521105559644622948954930381964428810975665933446128475648233786783165271201909145648566923460348610454326648213393607260249141273724587006606315588174881520920962829254091715364367892590360011330530548820466521384146951941511609433057270365759591953092186117381932611793105118548074462;
+
+struct Ray;
 
 // Камера
 struct Cam
@@ -62,7 +65,7 @@ struct Engine
     // Размеры окна в метрах
     double width = 100000000000.0;
     double height = 75000000000.0;
-    bool pause = false;
+    bool pause;
 
     Engine(){
         // Запуск glew
@@ -98,23 +101,33 @@ struct Engine
             exit(EXIT_FAILURE);
         }
 
-        glfwSetKeyCallback(window, key_callback);
+        pause = false;
+        
     }
     
-    // Понять что такое
     void run(Cam cam) {
+        // Отчищаем буфферы
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        // Отчищаем матрицы
         glMatrixMode(GL_PROJECTION);
         glLoadIdentity();
+        // выставляем положение "камеры"
         double left   = -width + cam.x;
         double right  =  width + cam.x;
         double bottom = -height + cam.y;
         double top    =  height + cam.y;
         glOrtho(left, right, bottom, top, -1.0, 1.0);
+        // Отчищаем матрицы
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
     }
 };
+
+// Создание объекта движка
+Engine engine;
+
+// Список с лучами
+vector<Ray> rays;
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
@@ -125,29 +138,76 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         else if(engine.pause){
             engine.pause = false;
         }
-    }    
+    }
+    if (key == GLFW_KEY_R && action == GLFW_PRESS){
+        while (!rays.empty())
+        {
+            rays.pop_back();
+        }
+        
+    }
+    if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS){
+        glfwSetWindowShouldClose(window, GLFW_TRUE);
+    }
 }
 
 struct Ray{
-    // global coordinates
+    // нормальные координаты
     double x, y, z;
-    // radial coordinates 
-    double teta, phi, r;
+
+    // радиальные координаты
+    // широта, долгота, расстояние до центра
+    double theta, phi, r;
+
+    //Производные радиальных координат (скорость их изменения)
+    double dtheta, dphi, dr;
+
+    double d2theta, d2phi, d2r;
     
     // Список с точками для следа
     vector<vec3> trail;
 
+    double E;
+
     // Ы
     Ray(double X, double Y, double Z) {
         x = X; y = Y; z = Z;
+        r = sqrt(x * x + y * y);
+        phi = atan(y / x);
+        theta = atan(z / x);
+
+        double f = 1.0 - hole.r_s/r;  
+        double dt_dλ = sqrt( (dr*dr)/(f*f) + (r*r*dphi*dphi)/f );
+        E = f * dt_dλ;
     }
 
     //
-    void step() {
-        
+    void step(double r_s, double dλ) {
+        /*
+        r = sqrt(x * x + y * y);
+        phi = atan(y / x);
+        theta = atan(z / x);
+        */
+
+        //
+        if(r_s >= r){
+            trail.push_back({x, y, z});
+            return;
+        }
+
+
+
+
+        //
+        x = cos(phi) * r;
+        y = sin(phi) * r;
+        z = sin(theta) * r;
+
+        //
+        trail.push_back({x, y, z});
     }
 
-     void draw(vector<Ray> rays) {
+    void draw(vector<Ray>& rays) {
         glPointSize(2.0f);
         glColor3f(1.0f, 1.0f, 1.0f);
         glBegin(GL_POINTS);
@@ -158,13 +218,13 @@ struct Ray{
 
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glLineWidth(1.0f);
+        glLineWidth(2.0f);
         for(auto& ray : rays) {
         
             int n = ray.trail.size();
             int s;
-            if(n > 50){
-                s = n - 50;
+            if(n > 1000){
+                s = n - 1000;
             }
             else {
                 s = 0;
@@ -222,48 +282,51 @@ struct Hole{
         glEnd();
     } 
 
-    // Функция которая точно работает
-    void draw2() {
-        glBegin(GL_TRIANGLE_FAN);
-        glColor3f(1.0f, 0.0f, 0.0f);               
-        for(int i = 0; i <= 100; i++) {
-            float angle = 2.0f * M_PI * i / 100;
-            float x = r_s * cos(angle);
-            float y = r_s * sin(angle);
-            glVertex2f(x, y);
-        }
-        glEnd();
-    }
-
 };
 
 Cam cam(0, 0, 0);
 
 Hole hole(0, 0, 0, 8.54e36);
 
-// Список с лучами
-vector<Ray> rays;
+void geodesic(Ray ray, double r_s){
+    double r = ray.r;       double dr = ray.dr;       double d2r = ray.d2r;
+    double phi = ray.phi;   double dphi = ray.dphi;   double d2phi = ray.d2phi;
+    double theta = ray.theta; double dtheta = ray.dtheta; double d2theta = ray.d2theta;
+    double E = ray.E;
 
-// Создание объекта движка
-Engine engine;
+    double f = 1.0 - r_s/r;
 
 
+    double dt_dλ = E / f;
+
+    d2r = - (r_s/(2*r*r)) * f * (dt_dλ*dt_dλ) + (r_s/(2*r*r*f)) * (dr*dr) + (r - r_s) * (dphi*dphi);
+    d2phi = -2.0 * dr * dphi / r;
+}
 
 int main() {
 
-    Ray ray(-75000000000.0, 0.0, 0.0);
-    rays.push_back(ray);
+    for(int i = 0; i < 10; i++){
+        double y = ((2 * engine.height * i / 10) - engine.height) * 0.8;
+        rays.push_back(Ray(-75000000000.0, y, 0.0));
+    }
+
+    glfwSetKeyCallback(engine.window, key_callback);
 
     // Главный цикл
     while (!glfwWindowShouldClose(engine.window)) {
 
         engine.run(cam);
 
+        
+
+        for(auto& ray : rays){
+            if(!engine.pause){
+                ray.step(hole.r_s, 1.0);
+            }
+            ray.draw(rays);
+        }
+
         hole.draw();
-
-        ray.step();
-
-        ray.draw(rays);
 
         // Смена буффера
         glfwSwapBuffers(engine.window);
