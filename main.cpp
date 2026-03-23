@@ -1,33 +1,3 @@
-// А для этого у нас есть ридми, но мне как-то лень узнавать кто такой маркдаун
-/*
-    a chto nam nado:
-    input function for hole
-        hole
-        pos and mass 
-        maybe velocity and direction of movement 
-        
-    input function for rays
-        single mod
-            position and direction 
-        plane mod
-            position of ends of plane
-            density of rays
-                rays per unit of surface 
-                strict number of rays
-        star mod
-            position and radius 
-            density of rays
-                rays per unit of surface 
-                strict number of rays
-                
-    output function 
-        pos of rays after n seconds
-        pos of ray in intervals of seconds
-        pos and direction of a ray
-        
-    MAHT function    
-        geodesic
-*/
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -192,8 +162,8 @@ struct Hole{
 
 };
 
+//Hole hole({0, 0}, 8.54e36);
 Hole hole({0, 0}, 8.54e36);
-//Hole hole({0, 0}, 0);
 
 struct Ray{
     // нормальные координаты
@@ -208,7 +178,7 @@ struct Ray{
     //Производные радиальных координат (скорость их изменения)
     double dphi, dr;
 
-    double d2phi, d2r;
+    double d2phi = 0, d2r = 0;
     
     // Список с точками для следа
     vector<vec2> trail;
@@ -255,24 +225,21 @@ struct Ray{
         trail.push_back({x, y});
     }
 
-    void draw(vector<Ray>& rays) {
+    void draw(Ray& ray) {
         glPointSize(2.0f);
         glColor3f(1.0f, 1.0f, 1.0f);
         glBegin(GL_POINTS);
-        for(auto& ray : rays) {
             glVertex2f(ray.x, ray.y);
-        }
         glEnd();
 
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glLineWidth(2.0f);
-        for(auto& ray : rays) {
-        
+               
             int n = ray.trail.size();
             int s;
-            if(n > 1000){
-                s = n - 1000;
+            if(n > 3000){
+                s = n - 3000;
             }
             else {
                 s = 0;
@@ -285,7 +252,7 @@ struct Ray{
                 glVertex2f(ray.trail[i].x, ray.trail[i].y);
             }
             glEnd();
-        }
+        
     }
 };
 
@@ -300,8 +267,10 @@ void geodesic(Ray& ray, double r_s){
 
 
     //double dt_dλ = E / f;
-    d2r = -(r_s / (2.0 * r*r)) * ( (dr*dr) / f+f * r*r * dphi*dphi );
     // d2r = -(r_s / (2.0 * r*r)) * f * (dt_dλ*dt_dλ) + (r_s/(2*r*r*f)) * (dr*dr) + (r - r_s) * (dphi*dphi);
+    //d2r = -(r_s / (2.0 * r*r)) * ( (dr*dr) / f+f * r*r * dphi*dphi );
+    d2r = (r_s / (2.0 * r * (r - r_s))) * (dr * dr) + (r - r_s) * (dphi * dphi);
+
     d2phi = -2.0 * dr * dphi / r;
 
     //
@@ -311,8 +280,8 @@ void geodesic(Ray& ray, double r_s){
 
 int main() {
 
-    for(int i = 0; i < 10; i++){
-        double y = ((2 * engine.height * i / 10) - engine.height) * 0.9;
+    for(int i = 0; i < 100; i++){
+        double y = ((2 * engine.height * i / 100) - engine.height) * 0.9;
         rays.push_back(Ray({-75000000000.0, y}, {c, 0}));
     }
 
@@ -327,10 +296,12 @@ int main() {
 
         for(auto& ray : rays){
             if(!engine.pause){
+                for(int i = 0; i < 10; i++){
                 geodesic(ray, hole.r_s);
-                ray.step(hole.r_s, 1.0);
+                ray.step(hole.r_s, 0.1);
+                }
             }
-            ray.draw(rays);
+            ray.draw(ray);
         }
 
         hole.draw();
