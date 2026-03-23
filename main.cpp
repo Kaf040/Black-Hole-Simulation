@@ -47,12 +47,10 @@ struct Ray;
 struct Cam
 {
     // Координаты
-    double x, y, z;
-    // Вращение
-    double tilt, yaw, pitch;
+    double x, y;
 
-    Cam(double X, double Y, double Z){
-        x = X; y = Y; z = Z;
+    Cam(double X, double Y){
+        x = X; y = Y;
     }
 };
 
@@ -151,34 +149,80 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     }
 }
 
+struct Hole{
+    // Из ввода
+    // Нормальные координаты
+    double x, y;
+    // Масса
+    double m;
+
+    // Из вычислений
+    // Радиус Шварцшильда (горизонт событий)
+    double r_s;
+
+    // Присваивание значений и вычисление радиуса шварцшильда
+    Hole(vec2 pos, double M)
+    {
+        x = pos.x; y = pos.y; m = M;
+        r_s = 2.0 * G * M / (c * c);
+    }
+    
+    void draw() {
+        // Выбор режима последовательных треугольников
+        glBegin(GL_TRIANGLE_STRIP);
+        // Белый цвет
+        glColor3f(1.0f, 1.0f, 1.0f);               
+        for(int i = 0; i <= 100; i++) {
+            // Находим нужный угол как i сотых из двух радиан
+            double angle = 2.0f * PI * i / 100;
+            double x = r_s * cos(angle);
+            double y = r_s * sin(angle);
+            // передача полученной точки в gl
+            glVertex2f(x, y);
+            
+            // Находим угол как раньше но со смещением в пол шага
+            float angle2 = (2.0f * PI * i / 100) + (2.0f * PI * 1.0f / 100);
+            float x2 = (r_s - r_s * 0.1) * cos(angle);
+            float y2 = (r_s - r_s * 0.1) * sin(angle);
+            glVertex2f(x2, y2);
+            
+        }
+        glEnd();
+    } 
+
+};
+
+Hole hole({0, 0}, 8.54e36);
+//Hole hole({0, 0}, 0);
+
 struct Ray{
     // нормальные координаты
-    double x, y, z;
+    double x, y;
 
-    // радиальные координаты
+    double dx, dy;
+
+    // полярные координаты
     // широта, долгота, расстояние до центра
-    double theta, phi, r;
+    double phi, r;
 
     //Производные радиальных координат (скорость их изменения)
-    double dtheta, dphi, dr;
+    double dphi, dr;
 
-    double d2theta, d2phi, d2r;
+    double d2phi, d2r;
     
     // Список с точками для следа
-    vector<vec3> trail;
-
-    double E;
+    vector<vec2> trail;
 
     // Ы
-    Ray(double X, double Y, double Z) {
-        x = X; y = Y; z = Z;
+    Ray(vec2 pos, vec2 vel) {
+        x = pos.x; y = pos.y;
         r = sqrt(x * x + y * y);
-        phi = atan(y / x);
-        theta = atan(z / x);
+        phi = atan2(y, x);
 
-        double f = 1.0 - hole.r_s/r;  
-        double dt_dλ = sqrt( (dr*dr)/(f*f) + (r*r*dphi*dphi)/f );
-        E = f * dt_dλ;
+        dr = vel.x * cos(phi) + vel.y * sin(phi);
+        dphi  = ( -vel.x * sin(phi) + vel.y * cos(phi) ) / r;
+
+        double f = 1.0 - hole.r_s / r;  
     }
 
     //
@@ -191,20 +235,24 @@ struct Ray{
 
         //
         if(r_s >= r){
-            trail.push_back({x, y, z});
+            trail.push_back({x, y});
             return;
         }
 
+        
 
+        dr = dr + (d2r * dλ);
+        dphi = dphi + (d2phi * dλ);
+        r = r + (dr * dλ);
+        phi = phi + (dphi * dλ);
 
 
         //
-        x = cos(phi) * r;
-        y = sin(phi) * r;
-        z = sin(theta) * r;
+        x = hole.x + cos(phi) * r;
+        y = hole.y + sin(phi) * r;
 
         //
-        trail.push_back({x, y, z});
+        trail.push_back({x, y});
     }
 
     void draw(vector<Ray>& rays) {
@@ -241,73 +289,31 @@ struct Ray{
     }
 };
 
-struct Hole{
-    // Из ввода
-    // Нормальные координаты
-    double x, y, z;
-    // Масса
-    double m;
+Cam cam(0, 0);
 
-    // Из вычислений
-    // Радиус Шварцшильда (горизонт событий)
-    double r_s;
-
-    // Присваивание значений и вычисление радиуса шварцшильда
-    Hole(double X, double Y, double Z, double M)
-    {
-        x = X; y = Y; z = Z; m = M;
-        r_s = 2.0 * G * M / (c * c);
-    }
-    
-    void draw() {
-        // Выбор режима последовательных треугольников
-        glBegin(GL_TRIANGLE_STRIP);
-        // Белый цвет
-        glColor3f(1.0f, 1.0f, 1.0f);               
-        for(int i = 0; i <= 100; i++) {
-            // Находим нужный угол как i сотых из двух радиан
-            double angle = 2.0f * PI * i / 100;
-            double x = r_s * cos(angle);
-            double y = r_s * sin(angle);
-            // передача полученной точки в gl
-            glVertex2f(x, y);
-            
-            // Находим угол как раньше но со смещением в пол шага
-            float angle2 = (2.0f * PI * i / 100) + (2.0f * PI * 1.0f / 100);
-            float x2 = (r_s - r_s * 0.1) * cos(angle);
-            float y2 = (r_s - r_s * 0.1) * sin(angle);
-            glVertex2f(x2, y2);
-            
-        }
-        glEnd();
-    } 
-
-};
-
-Cam cam(0, 0, 0);
-
-Hole hole(0, 0, 0, 8.54e36);
-
-void geodesic(Ray ray, double r_s){
+void geodesic(Ray& ray, double r_s){
     double r = ray.r;       double dr = ray.dr;       double d2r = ray.d2r;
     double phi = ray.phi;   double dphi = ray.dphi;   double d2phi = ray.d2phi;
-    double theta = ray.theta; double dtheta = ray.dtheta; double d2theta = ray.d2theta;
-    double E = ray.E;
+    //double E = ray.E;
 
     double f = 1.0 - r_s/r;
 
 
-    double dt_dλ = E / f;
-
-    d2r = - (r_s/(2*r*r)) * f * (dt_dλ*dt_dλ) + (r_s/(2*r*r*f)) * (dr*dr) + (r - r_s) * (dphi*dphi);
+    //double dt_dλ = E / f;
+    d2r = -(r_s / (2.0 * r*r)) * ( (dr*dr) / f+f * r*r * dphi*dphi );
+    // d2r = -(r_s / (2.0 * r*r)) * f * (dt_dλ*dt_dλ) + (r_s/(2*r*r*f)) * (dr*dr) + (r - r_s) * (dphi*dphi);
     d2phi = -2.0 * dr * dphi / r;
+
+    //
+    ray.d2r = d2r;
+    ray.d2phi = d2phi;
 }
 
 int main() {
 
     for(int i = 0; i < 10; i++){
-        double y = ((2 * engine.height * i / 10) - engine.height) * 0.8;
-        rays.push_back(Ray(-75000000000.0, y, 0.0));
+        double y = ((2 * engine.height * i / 10) - engine.height) * 0.9;
+        rays.push_back(Ray({-75000000000.0, y}, {c, 0}));
     }
 
     glfwSetKeyCallback(engine.window, key_callback);
@@ -321,6 +327,7 @@ int main() {
 
         for(auto& ray : rays){
             if(!engine.pause){
+                geodesic(ray, hole.r_s);
                 ray.step(hole.r_s, 1.0);
             }
             ray.draw(rays);
