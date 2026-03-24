@@ -70,9 +70,9 @@ struct Engine
         }
 
         pause = false;
-        
+
     }
-    
+
     void run(Cam cam) {
         // Отчищаем буфферы
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -112,7 +112,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         {
             rays.pop_back();
         }
-        
+
     }
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS){
         glfwSetWindowShouldClose(window, GLFW_TRUE);
@@ -136,7 +136,7 @@ struct Hole{
         x = pos.x; y = pos.y; m = M;
         r_s = 2.0 * G * M / (c * c);
     }
-    
+
     void draw() {
         // Выбор режима последовательных треугольников
         glBegin(GL_TRIANGLE_STRIP);
@@ -149,13 +149,13 @@ struct Hole{
             double y = r_s * sin(angle);
             // передача полученной точки в gl
             glVertex2f(x, y);
-            
+
             // Находим угол как раньше но со смещением в пол шага
             float angle2 = (2.0f * PI * i / 100) + (2.0f * PI * 1.0f / 100);
             float x2 = (r_s - r_s * 0.1) * cos(angle);
             float y2 = (r_s - r_s * 0.1) * sin(angle);
             glVertex2f(x2, y2);
-            
+
         }
         glEnd();
     } 
@@ -179,7 +179,7 @@ struct Ray{
     double dphi, dr;
 
     double d2phi = 0, d2r = 0;
-    
+
     // Список с точками для следа
     vector<vec2> trail;
 
@@ -209,7 +209,7 @@ struct Ray{
             return;
         }
 
-        
+
 
         dr = dr + (d2r * dλ);
         dphi = dphi + (d2phi * dλ);
@@ -235,7 +235,7 @@ struct Ray{
         glEnable(GL_BLEND);
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
         glLineWidth(2.0f);
-               
+
             int n = ray.trail.size();
             int s;
             if(n > 3000){
@@ -244,7 +244,7 @@ struct Ray{
             else {
                 s = 0;
             }
-            
+
             glBegin(GL_LINE_STRIP);
             for(int i = s; i < n; i++){
                 float alpha = float(i - s) / float(n - s - 1);
@@ -252,18 +252,20 @@ struct Ray{
                 glVertex2f(ray.trail[i].x, ray.trail[i].y);
             }
             glEnd();
-        
+
     }
 };
 
 Cam cam(0, 0);
 
-void geodesic(Ray& ray, double r_s){
-    double r = ray.r;       double dr = ray.dr;       double d2r = ray.d2r;
-    double phi = ray.phi;   double dphi = ray.dphi;   double d2phi = ray.d2phi;
+void geodesic(inp[4], double r_s, double ret[4]){
+    double r = inp[0];
+    double phi = inp[1];
+    double dr = inp[2]; 
+    double dphi = inp[3];
     //double E = ray.E;
 
-    double f = 1.0 - r_s/r;
+    //double f = 1.0 - r_s/r;
 
 
     //double dt_dλ = E / f;
@@ -274,8 +276,37 @@ void geodesic(Ray& ray, double r_s){
     d2phi = -2.0 * dr * dphi / r;
 
     //
-    ray.d2r = d2r;
-    ray.d2phi = d2phi;
+    ret[0] = r;
+    ret[1] = phi;
+    ret[2] = d2r;
+    ret[3] = d2phi;
+}
+
+void sumarr(a[4], b[4], double factor, out[4]){
+    for(int i = 0; i < 4; i++){
+        out[i] = a[i] + b[i] * factor;
+    }
+}
+
+void rk4(Ray ray, double r_s, double dλ){
+    double y0[4] = {ray.r, ray.phi, ray.dr, ray.dphi};
+    double k1[4], k2[4], k3[4], k4[4], temp[4];
+    
+    geodesic(y0, r_s, k1);
+    
+    sumarr(y0, k1, dλ / 2, temp);
+    geodesic(temp, r_s, k2);
+    
+    sumarr(y0, k2, dλ / 2, temp);
+    geodesic(temp, r_s, k3);
+    
+    sumarr(y0, k3, dλ, temp);
+    geodesic(temp, r_s, k4);
+    
+    ray.r = ray.r + dλ / 6 * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]);
+    ray.phi = ray.phi + dλ / 6 * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1]);
+    ray.dr = ray.dr + dλ / 6 * (k1[2] + 2 * k2[2] + 2 * k3[2] + k4[2]);
+    ray.dphi = ray.dphi + dλ / 6 * (k1[4] + 2 * k2[4] + 2 * k3[4] + k4[4]);
 }
 
 int main() {
@@ -292,7 +323,7 @@ int main() {
 
         engine.run(cam);
 
-        
+
 
         for(auto& ray : rays){
             if(!engine.pause){
