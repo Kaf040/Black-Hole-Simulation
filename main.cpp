@@ -24,6 +24,35 @@ struct Cam
     }
 };
 
+struct Mouse
+{
+    double x, y;
+    double startx, starty;
+    
+    bool lkm, pkm;
+    bool drawing;
+    
+    void run(){
+        if(lkm && !drawing){
+            startx = x;
+            starty = y;
+            drawing = true;
+        }
+        else if(!lkm && drawing){
+            //creation of rays
+        }
+        if(drawing){
+            glBegin(GL_LINES);
+            glColor3f(1.0f, 1.0f, 1.0f);
+            glVertex2f(startx, starty);
+            glVertex2f(x, y);
+            glEnd();
+        }
+    }
+};
+
+Mouse mouse;
+
 struct Engine
 {
     GLFWwindow* window;
@@ -33,7 +62,9 @@ struct Engine
     // Размеры окна в метрах
     double width = 100000000000.0;
     double height = 75000000000.0;
+    // Пауза
     bool pause;
+    
 
     Engine(){
         // Запуск glew
@@ -68,6 +99,10 @@ struct Engine
             glfwTerminate();
             exit(EXIT_FAILURE);
         }
+        
+        glfwSetKeyCallback(window, key_callback);
+        glfwSetCursorPosCallback(window, cursor_position_callback);
+        glfwSetMouseButtonCallback(window, mouse_button_callback);
 
         pause = false;
 
@@ -116,6 +151,32 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
     }
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS){
         glfwSetWindowShouldClose(window, GLFW_TRUE);
+    }
+}
+
+void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
+{
+    mouse.x = xpos;
+    mouse.x = ypos;
+} 
+
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
+{
+    if(button == GLFW_MOUSE_BUTTON_RIGHT){
+        if(action == GLFW_PRESS){
+            mouse.rkm = true;
+        }
+        else if(action == GLFW_ RELEASE){
+            mouse.rkm = false;
+        }
+    }
+    if(button == GLFW_MOUSE_BUTTON_LEFT){
+        if(action == GLFW_PRESS){
+            mouse.lkm = true;
+        }
+        else if(action == GLFW_ RELEASE){
+            mouse.lkm = false;
+        }
     }
 }
 
@@ -291,18 +352,18 @@ void sumarr(a[4], b[4], double factor, out[4]){
 void rk4(Ray ray, double r_s, double dλ){
     double y0[4] = {ray.r, ray.phi, ray.dr, ray.dphi};
     double k1[4], k2[4], k3[4], k4[4], temp[4];
-    
+
     geodesic(y0, r_s, k1);
-    
+
     sumarr(y0, k1, dλ / 2, temp);
     geodesic(temp, r_s, k2);
-    
+
     sumarr(y0, k2, dλ / 2, temp);
     geodesic(temp, r_s, k3);
-    
+
     sumarr(y0, k3, dλ, temp);
     geodesic(temp, r_s, k4);
-    
+
     ray.r = ray.r + dλ / 6 * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]);
     ray.phi = ray.phi + dλ / 6 * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1]);
     ray.dr = ray.dr + dλ / 6 * (k1[2] + 2 * k2[2] + 2 * k3[2] + k4[2]);
@@ -315,8 +376,6 @@ int main() {
         double y = ((2 * engine.height * i / 100) - engine.height) * 0.9;
         rays.push_back(Ray({-75000000000.0, y}, {c, 0}));
     }
-
-    glfwSetKeyCallback(engine.window, key_callback);
 
     // Главный цикл
     while (!glfwWindowShouldClose(engine.window)) {
