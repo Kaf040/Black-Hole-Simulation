@@ -100,10 +100,6 @@ struct Engine
             exit(EXIT_FAILURE);
         }
         
-        glfwSetKeyCallback(window, key_callback);
-        glfwSetCursorPosCallback(window, cursor_position_callback);
-        glfwSetMouseButtonCallback(window, mouse_button_callback);
-
         pause = false;
 
     }
@@ -164,17 +160,17 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 {
     if(button == GLFW_MOUSE_BUTTON_RIGHT){
         if(action == GLFW_PRESS){
-            mouse.rkm = true;
+            mouse.pkm = true;
         }
-        else if(action == GLFW_ RELEASE){
-            mouse.rkm = false;
+        else if(action == GLFW_RELEASE){
+            mouse.pkm = false;
         }
     }
     if(button == GLFW_MOUSE_BUTTON_LEFT){
         if(action == GLFW_PRESS){
             mouse.lkm = true;
         }
-        else if(action == GLFW_ RELEASE){
+        else if(action == GLFW_RELEASE){
             mouse.lkm = false;
         }
     }
@@ -223,8 +219,8 @@ struct Hole{
 
 };
 
+Hole hole({0, 0}, 1.0);
 //Hole hole({0, 0}, 8.54e36);
-Hole hole({0, 0}, 8.54e36);
 
 struct Ray{
     // нормальные координаты
@@ -271,18 +267,16 @@ struct Ray{
         }
 
 
-
+        /*
         dr = dr + (d2r * dλ);
         dphi = dphi + (d2phi * dλ);
         r = r + (dr * dλ);
         phi = phi + (dphi * dλ);
+        */
 
-
-        //
         x = hole.x + cos(phi) * r;
         y = hole.y + sin(phi) * r;
 
-        //
         trail.push_back({x, y});
     }
 
@@ -319,37 +313,34 @@ struct Ray{
 
 Cam cam(0, 0);
 
-void geodesic(inp[4], double r_s, double ret[4]){
+void geodesic(double inp[4], double r_s, double ret[4]){
     double r = inp[0];
     double phi = inp[1];
     double dr = inp[2]; 
     double dphi = inp[3];
-    //double E = ray.E;
+    
+    double d2r, d2phi;
 
-    //double f = 1.0 - r_s/r;
-
-
-    //double dt_dλ = E / f;
-    // d2r = -(r_s / (2.0 * r*r)) * f * (dt_dλ*dt_dλ) + (r_s/(2*r*r*f)) * (dr*dr) + (r - r_s) * (dphi*dphi);
-    //d2r = -(r_s / (2.0 * r*r)) * ( (dr*dr) / f+f * r*r * dphi*dphi );
-    d2r = (r_s / (2.0 * r * (r - r_s))) * (dr * dr) + (r - r_s) * (dphi * dphi);
+    double f = 1.0 - r_s / r;
+    d2r = -(r_s / (2.0 * r*r)) * ( (dr*dr) / f+f * r*r * dphi*dphi );
+    //d2r = (r_s / (2.0 * r * (r - r_s))) * (dr * dr) + (r - r_s) * (dphi * dphi);
 
     d2phi = -2.0 * dr * dphi / r;
 
     //
-    ret[0] = r;
-    ret[1] = phi;
+    ret[0] = dr;
+    ret[1] = dphi;
     ret[2] = d2r;
     ret[3] = d2phi;
 }
 
-void sumarr(a[4], b[4], double factor, out[4]){
+void sumarr(double a[4], double b[4], double factor, double out[4]){
     for(int i = 0; i < 4; i++){
         out[i] = a[i] + b[i] * factor;
     }
 }
 
-void rk4(Ray ray, double r_s, double dλ){
+void rk4(Ray& ray, double r_s, double dλ){
     double y0[4] = {ray.r, ray.phi, ray.dr, ray.dphi};
     double k1[4], k2[4], k3[4], k4[4], temp[4];
 
@@ -364,31 +355,35 @@ void rk4(Ray ray, double r_s, double dλ){
     sumarr(y0, k3, dλ, temp);
     geodesic(temp, r_s, k4);
 
-    ray.r = ray.r + dλ / 6 * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]);
-    ray.phi = ray.phi + dλ / 6 * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1]);
-    ray.dr = ray.dr + dλ / 6 * (k1[2] + 2 * k2[2] + 2 * k3[2] + k4[2]);
-    ray.dphi = ray.dphi + dλ / 6 * (k1[4] + 2 * k2[4] + 2 * k3[4] + k4[4]);
+    ray.r = ray.r + (dλ / 6) * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]);
+    ray.phi = ray.phi + (dλ / 6) * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1]);
+    ray.dr = ray.dr + (dλ / 6) * (k1[2] + 2 * k2[2] + 2 * k3[2] + k4[2]);
+    ray.dphi = ray.dphi + (dλ / 6) * (k1[4] + 2 * k2[4] + 2 * k3[4] + k4[4]);
 }
 
 int main() {
 
-    for(int i = 0; i < 100; i++){
-        double y = ((2 * engine.height * i / 100) - engine.height) * 0.9;
+    glfwSetKeyCallback(engine.window, key_callback);
+    glfwSetCursorPosCallback(engine.window, cursor_position_callback);
+    glfwSetMouseButtonCallback(engine.window, mouse_button_callback);
+
+    for(int i = 0; i < 10; i++){
+        double y = ((2 * engine.height * i / 10) - engine.height) * 0.9;
         rays.push_back(Ray({-75000000000.0, y}, {c, 0}));
     }
 
     // Главный цикл
-    while (!glfwWindowShouldClose(engine.window)) {
+    while(!glfwWindowShouldClose(engine.window)){
 
         engine.run(cam);
-
-
+        float steps = 5;
+        
 
         for(auto& ray : rays){
             if(!engine.pause){
-                for(int i = 0; i < 10; i++){
-                geodesic(ray, hole.r_s);
-                ray.step(hole.r_s, 0.1);
+                for(int i = 0; i < steps; i++){
+                    rk4(ray, hole.r_s, 1 / steps);
+                    ray.step(hole.r_s, 1 / steps);
                 }
             }
             ray.draw(ray);
