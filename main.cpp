@@ -11,7 +11,12 @@ const double c = 299792458.0;
 const double G = 6.67430e-11;
 const double PI = 3.141592653589793238462643383279502884197169399375105820974944592307816406286208998628034825342117067982148086513282306647093844609550582231725359408128481117450284102701938521105559644622948954930381964428810975665933446128475648233786783165271201909145648566923460348610454326648213393607260249141273724587006606315588174881520920962829254091715364367892590360011330530548820466521384146951941511609433057270365759591953092186117381932611793105118548074462;
 
+const double pxtoco = (100000000000.0 * 2) / 800;
+
 struct Ray;
+
+// Список с лучами
+vector<Ray> rays;
 
 // Камера
 struct Cam
@@ -23,6 +28,19 @@ struct Cam
         x = X; y = Y;
     }
 };
+
+struct Mouse
+{
+    double x, y;
+    double startx, starty;
+    
+    bool lkm, rkm;
+    bool drawing;
+    
+    void run();
+};
+
+Mouse mouse;
 
 struct Engine
 {
@@ -94,8 +112,7 @@ struct Engine
 // Создание объекта движка
 Engine engine;
 
-// Список с лучами
-vector<Ray> rays;
+void create_rays();
 
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
@@ -112,10 +129,39 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
         {
             rays.pop_back();
         }
-        
     }
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS){
         glfwSetWindowShouldClose(window, GLFW_TRUE);
+    }
+    if (key == GLFW_KEY_F && action == GLFW_PRESS){
+        create_rays();
+    }
+}
+
+void cursor_position_callback(GLFWwindow* window, double xpos, double ypos)
+{
+    double x, y;
+    mouse.x = xpos - (engine.WIDTH / 2);
+    mouse.y = (ypos - (engine.HEIGHT / 2)) * -1;
+} 
+
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
+{
+    if(button == GLFW_MOUSE_BUTTON_RIGHT){
+        if(action == GLFW_PRESS){
+            mouse.rkm = true;
+        }
+        else if(action == GLFW_RELEASE){
+            mouse.rkm = false;
+        }
+    }
+    if(button == GLFW_MOUSE_BUTTON_LEFT){
+        if(action == GLFW_PRESS){
+            mouse.lkm = true;
+        }
+        else if(action == GLFW_RELEASE){
+            mouse.lkm = false;
+        }
     }
 }
 
@@ -256,42 +302,85 @@ struct Ray{
     }
 };
 
+void Mouse::run(){
+    if(lkm && !drawing){
+        startx = x;
+        starty = y;
+        drawing = true;
+    }
+    else if(!lkm && drawing){
+        drawing = false;
+        //creation of rays
+        double rx, ry, a, cx, cy, len, otst;
+        a = atan2(starty - y, startx - x);
+        a += PI / 2;
+        if(a - atan(y, x) < PI / 2 && a - atan(y, x) > (PI / 2) * -1){
+            a -= PI;
+        }
+        cx = cos(a) * c;
+        cy = sin(a) * c;
+        
+        a = atan2(y - starty, x - startx);
+        rx = startx;
+        ry = starty;
+        len = sqrt((x - startx) * (x - startx) + (y - starty) * (y - starty));
+        otst = len;
+        while (otst > 4500000000 / pxtoco)
+        {
+            otst -= 4500000000 / pxtoco;
+        }
+        otst = otst / 2;
+
+        while (otst < len)
+        {
+        rx = (cos(a) * otst) + startx;
+        ry = (sin(a) * otst) + starty;
+        rays.push_back(Ray({rx * pxtoco, ry * pxtoco}, {cx, cy}));
+        otst += 4500000000 / pxtoco;
+        }
+    }
+    if(drawing){
+        glBegin(GL_LINES);
+        glColor3f(1.0f, 1.0f, 1.0f);
+        glLineWidth(400.0f);
+        glVertex2f(startx * pxtoco, starty * pxtoco);
+        glVertex2f(x * pxtoco, y * pxtoco);
+        glEnd();
+    }
+}
+
 Cam cam(0, 0);
 
 void geodesic(Ray& ray, double r_s){
     double r = ray.r;       double dr = ray.dr;       double d2r = ray.d2r;
     double phi = ray.phi;   double dphi = ray.dphi;   double d2phi = ray.d2phi;
-    //double E = ray.E;
 
-    double f = 1.0 - r_s/r;
-
-
-    //double dt_dλ = E / f;
-    // d2r = -(r_s / (2.0 * r*r)) * f * (dt_dλ*dt_dλ) + (r_s/(2*r*r*f)) * (dr*dr) + (r - r_s) * (dphi*dphi);
-    //d2r = -(r_s / (2.0 * r*r)) * ( (dr*dr) / f+f * r*r * dphi*dphi );
     d2r = (r_s / (2.0 * r * (r - r_s))) * (dr * dr) + (r - r_s) * (dphi * dphi);
-
     d2phi = -2.0 * dr * dphi / r;
 
-    //
     ray.d2r = d2r;
     ray.d2phi = d2phi;
 }
 
-int main() {
-
-    for(int i = 0; i < 100; i++){
-        double y = ((2 * engine.height * i / 100) - engine.height) * 0.9;
+void create_rays(){
+    for(int i = 0; i < 30; i++){
+        double y = ((2 * engine.height * i / 30) - engine.height) * 0.9;
         rays.push_back(Ray({-75000000000.0, y}, {c, 0}));
     }
+}
 
+int main() {
+
+            
     glfwSetKeyCallback(engine.window, key_callback);
+    glfwSetCursorPosCallback(engine.window, cursor_position_callback);
+    glfwSetMouseButtonCallback(engine.window, mouse_button_callback);
 
     // Главный цикл
     while (!glfwWindowShouldClose(engine.window)) {
 
         engine.run(cam);
-
+        mouse.run();
         
 
         for(auto& ray : rays){
