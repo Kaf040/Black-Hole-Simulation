@@ -229,7 +229,7 @@ struct Ray{
     // Список с точками для следа
     vector<vec2> trail;
 
-    // Ы
+    // 
     Ray(vec2 pos, vec2 vel) {
         x = pos.x; y = pos.y;
         r = sqrt(x * x + y * y);
